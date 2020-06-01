@@ -2725,16 +2725,9 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
                     // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
 
-                    {// check the (1) above first
-                        String f=fileMask;
-                        while(true) {
-                            int idx = findSeparator(f);
-                            if(idx==-1)     break;
-                            f=f.substring(idx+1);
-
-                            if(hasMatch(dir,f,caseSensitive))
-                                return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask,f);
-                        }
+                    String check = checkFileMaskMatch(dir,fileMask);
+                    if(check!=null) {
+                        return check;
                     }
 
                     {// check the (2) above next as this is more expensive.
@@ -2796,6 +2789,20 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                 }
 
                 return null; // no error
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatch(File dir, String fileMask) throws InterruptedException {
+                String f=fileMask;
+                while(true) {
+                    int idx = findSeparator(f);
+                    if(idx==-1)     break;
+                    f=f.substring(idx+1);
+
+                    if(hasMatch(dir,f,caseSensitive))
+                        return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask,f);
+                }
+                return null;
             }
 
             private boolean hasMatch(File dir, String pattern, boolean bCaseSensitive) throws InterruptedException {
