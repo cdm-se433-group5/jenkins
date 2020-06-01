@@ -2725,39 +2725,15 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
                     // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
 
-                    String check = checkFileMaskMatch(dir,fileMask);
-                    if(check!=null) {
-                        return check;
+                    String suggestedFileMask = checkFileMaskMatch(dir,fileMask);
+                    if(suggestedFileMask!=null) {
+                        return suggestedFileMask;
                     }
 
-                    {// check the (2) above next as this is more expensive.
-                        // Try prepending "**/" to see if that results in a match
-                        FileSet fs = Util.createFileSet(reading(dir),"**/"+fileMask);
-                        fs.setCaseSensitive(caseSensitive);
-                        DirectoryScanner ds = fs.getDirectoryScanner(new Project());
-                        if(ds.getIncludedFilesCount()!=0) {
-                            // try shorter name first so that the suggestion results in least amount of changes
-                            String[] names = ds.getIncludedFiles();
-                            Arrays.sort(names,SHORTER_STRING_FIRST);
-                            for( String f : names) {
-                                // now we want to decompose f to the leading portion that matched "**"
-                                // and the trailing portion that matched the file mask, so that
-                                // we can suggest the user error.
-                                //
-                                // this is not a very efficient/clever way to do it, but it's relatively simple
-
-                                StringBuilder prefix = new StringBuilder();
-                                while(true) {
-                                    int idx = findSeparator(f);
-                                    if(idx==-1)     break;
-
-                                    prefix.append(f, 0, idx).append('/');
-                                    f=f.substring(idx+1);
-                                    if(hasMatch(dir,prefix+fileMask,caseSensitive))
-                                        return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask, prefix+fileMask);
-                                }
-                            }
-                        }
+                    // check the (2) above next as this is more expensive.
+                    suggestedFileMask = checkFileMaskMatchV2(dir,fileMask);
+                    if(suggestedFileMask!=null) {
+                        return suggestedFileMask;
                     }
 
                     {// finally, see if we can identify any sub portion that's valid. Otherwise bail out
@@ -2801,6 +2777,38 @@ public final class FilePath implements SerializableOnlyOverRemoting {
 
                     if(hasMatch(dir,f,caseSensitive))
                         return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask,f);
+                }
+                return null;
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatchV2(File dir, String fileMask) throws InterruptedException {
+                // Try prepending "**/" to see if that results in a match
+                FileSet fs = Util.createFileSet(reading(dir),"**/"+fileMask);
+                fs.setCaseSensitive(caseSensitive);
+                DirectoryScanner ds = fs.getDirectoryScanner(new Project());
+                if(ds.getIncludedFilesCount()!=0) {
+                    // try shorter name first so that the suggestion results in least amount of changes
+                    String[] names = ds.getIncludedFiles();
+                    Arrays.sort(names,SHORTER_STRING_FIRST);
+                    for( String f : names) {
+                        // now we want to decompose f to the leading portion that matched "**"
+                        // and the trailing portion that matched the file mask, so that
+                        // we can suggest the user error.
+                        //
+                        // this is not a very efficient/clever way to do it, but it's relatively simple
+
+                        StringBuilder prefix = new StringBuilder();
+                        while(true) {
+                            int idx = findSeparator(f);
+                            if(idx==-1)     break;
+
+                            prefix.append(f, 0, idx).append('/');
+                            f=f.substring(idx+1);
+                            if(hasMatch(dir,prefix+fileMask,caseSensitive))
+                                return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask, prefix+fileMask);
+                        }
+                    }
                 }
                 return null;
             }
