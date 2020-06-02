@@ -81,6 +81,7 @@ import static org.apache.commons.io.FilenameUtils.getBaseName;
 public class ClassicPluginStrategy implements PluginStrategy {
 
     private static final Logger LOGGER = Logger.getLogger(ClassicPluginStrategy.class.getName());
+    private static final String FAILEDTOLOAD = "Failed to load ";
 
     /**
      * Filter for jar files.
@@ -105,9 +106,9 @@ public class ClassicPluginStrategy implements PluginStrategy {
     @Override public String getShortName(File archive) throws IOException {
         Manifest manifest;
         if (!archive.exists()) {
-            throw new FileNotFoundException("Failed to load " + archive + ". The file does not exist");
+            throw new FileNotFoundException(FAILEDTOLOAD + archive + ". The file does not exist");
         } else if (!archive.isFile()) {
-            throw new FileNotFoundException("Failed to load " + archive + ". It is not a file");
+            throw new FileNotFoundException(FAILEDTOLOAD + archive + ". It is not a file");
         }
 
         if (isLinked(archive)) {
@@ -117,7 +118,7 @@ public class ClassicPluginStrategy implements PluginStrategy {
                 manifest = jf.getManifest();
             } catch (IOException ex) {
                 // Mention file name in the exception
-                throw new IOException("Failed to load " + archive, ex);
+                throw new IOException(FAILEDTOLOAD + archive, ex);
             }
         }
         return PluginWrapper.computeShortName(manifest, archive.getName());
@@ -152,7 +153,7 @@ public class ClassicPluginStrategy implements PluginStrategy {
                     throw new IOException(e);
                 }
             } catch (IOException e) {
-                throw new IOException("Failed to load " + archive, e);
+                throw new IOException(FAILEDTOLOAD + archive, e);
             }
     }
 

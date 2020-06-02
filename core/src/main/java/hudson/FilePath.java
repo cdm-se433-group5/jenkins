@@ -213,6 +213,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
      * Maximum http redirects we will follow. This defaults to the same number as Firefox/Chrome tolerates.
      */
     private static final int MAX_REDIRECTS = 20;
+    private static final String SKIPPING_INSTALL = "Skipping installation of "
 
     /**
      * When this {@link FilePath} represents the remote path,
@@ -864,7 +865,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
             } catch (IOException x) {
                 if (this.exists()) {
                     // Cannot connect now, so assume whatever was last unpacked is still OK.
-                    listener.getLogger().println("Skipping installation of " + archive + " to " + remote + ": " + x);
+                    listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + ": " + x);
                     return false;
                 } else {
                     throw x;
@@ -882,7 +883,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                         listener.getLogger().println("Following redirect " + archive.toExternalForm() + " -> " + location);
                         return installIfNecessaryFrom(getUrlFactory().newURL(location), listener, message, maxRedirects - 1);
                     } else {
-                        listener.getLogger().println("Skipping installation of " + archive + " to " + remote + " due to too many redirects.");
+                        listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + " due to too many redirects.");
                         return false;
                     }
                 }
@@ -890,7 +891,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
                         return false;
                     } else if (responseCode != HttpURLConnection.HTTP_OK) {
-                        listener.getLogger().println("Skipping installation of " + archive + " to " + remote + " due to server error: " + responseCode + " " + httpCon.getResponseMessage());
+                        listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + " due to server error: " + responseCode + " " + httpCon.getResponseMessage());
                         return false;
                     }
                 }
