@@ -213,6 +213,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
      * Maximum http redirects we will follow. This defaults to the same number as Firefox/Chrome tolerates.
      */
     private static final int MAX_REDIRECTS = 20;
+    private static final String SKIPPING_INSTALL = "Skipping installation of ";
 
     /**
      * When this {@link FilePath} represents the remote path,
@@ -348,21 +349,21 @@ public final class FilePath implements SerializableOnlyOverRemoting {
             String token = tokens.get(i);
             if (token.equals(".")) {
                 tokens.remove(i);
-                if (tokens.size() > 0)
+                if (!tokens.isEmpty())
                     tokens.remove(i > 0 ? i - 1 : i);
             } else if (token.equals("..")) {
                 if (i == 0) {
                     // If absolute path, just remove: /../something
                     // If relative path, not collapsible so leave as-is
                     tokens.remove(0);
-                    if (tokens.size() > 0) token += tokens.remove(0);
+                    if (!tokens.isEmpty()) token += tokens.remove(0);
                     if (!isAbsolute) buf.append(token);
                 } else {
                     // Normalize: remove something/.. plus separator before/after
                     i -= 2;
                     for (int j = 0; j < 3; j++) tokens.remove(i);
                     if (i > 0) tokens.remove(i-1);
-                    else if (tokens.size() > 0) tokens.remove(0);
+                    else if (!tokens.isEmpty()) tokens.remove(0);
                 }
             } else
                 i += 2;
@@ -864,7 +865,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
             } catch (IOException x) {
                 if (this.exists()) {
                     // Cannot connect now, so assume whatever was last unpacked is still OK.
-                    listener.getLogger().println("Skipping installation of " + archive + " to " + remote + ": " + x);
+                    listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + ": " + x);
                     return false;
                 } else {
                     throw x;
@@ -882,7 +883,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                         listener.getLogger().println("Following redirect " + archive.toExternalForm() + " -> " + location);
                         return installIfNecessaryFrom(getUrlFactory().newURL(location), listener, message, maxRedirects - 1);
                     } else {
-                        listener.getLogger().println("Skipping installation of " + archive + " to " + remote + " due to too many redirects.");
+                        listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + " due to too many redirects.");
                         return false;
                     }
                 }
@@ -890,7 +891,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
                         return false;
                     } else if (responseCode != HttpURLConnection.HTTP_OK) {
-                        listener.getLogger().println("Skipping installation of " + archive + " to " + remote + " due to server error: " + responseCode + " " + httpCon.getResponseMessage());
+                        listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + " due to server error: " + responseCode + " " + httpCon.getResponseMessage());
                         return false;
                     }
                 }
@@ -2705,25 +2706,79 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if(hasMatch(dir,fileMask,caseSensitive))
                         continue;   // no error on this portion
 
+
                     // JENKINS-5253 - if we can get some match in case insensitive mode
                     // and user requested case sensitive match, notify the user
                     if (caseSensitive && hasMatch(dir, fileMask, false)) {
                         return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
                     }
 
-                    // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
-                    // so see if we can match by using ' ' as the separator
-                    if(fileMask.contains(" ")) {
-                        boolean matched = true;
-                        for (String token : Util.tokenize(fileMask))
-                            matched &= hasMatch(dir,token,caseSensitive);
-                        if(matched)
-                            return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
-                    }
 
-                    // a common mistake is to assume the wrong base dir, and there are two variations
-                    // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
-                    // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
+                    // Refactored this method to reduce its Cognitive Complexity from 60 to the 15 allowed
+                    String suggestedFileMask = getSuggestedFileMask(dir,fileMask);
+                    if(suggestedFileMask!=null) {
+                        return suggestedFileMask;
+                    }
+                }
+
+                return null; // no error
+            }
+
+            public String getSuggestedFileMask(File dir, String fileMask) throws InterruptedException {
+                // JENKINS-5253 - if we can get some match in case insensitive mode
+                // and user requested case sensitive match, notify the user
+                if (caseSensitive && hasMatch(dir, fileMask, false)) {
+                    return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
+                }
+
+                // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
+                // so see if we can match by using ' ' as the separator
+                if(fileMask.contains(" ")) {
+                    boolean matched = true;
+                    for (String token : Util.tokenize(fileMask))
+                        matched &= hasMatch(dir,token,caseSensitive);
+                    if(matched)
+                        return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
+                }
+
+                // a common mistake is to assume the wrong base dir, and there are two variations
+                // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
+                // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
+
+                String suggestedFileMask = checkFileMaskMatch(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                // check the (2) above next as this is more expensive.
+                suggestedFileMask = checkFileMaskMatchV2(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                // finally, see if we can identify any sub portion that's valid. Otherwise bail out
+                suggestedFileMask = checkFileMaskMatchV3(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                return null;
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatch(File dir, String fileMask) throws InterruptedException {
+                String f=fileMask;
+                while(true) {
+                    int idx = findSeparator(f);
+                    if(idx==-1)     break;
+                    f=f.substring(idx+1);
+
+                    if(hasMatch(dir,f,caseSensitive))
+                        return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask,f);
+                }
+                return null;
+            }
+
 
                     String suggestedFileMask = checkFileMaskMatch(dir,fileMask);
                     if(suggestedFileMask!=null) {
@@ -2734,14 +2789,20 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     suggestedFileMask = checkFileMaskMatchV2(dir,fileMask);
                     if(suggestedFileMask!=null) {
                         return suggestedFileMask;
+
                     }
+                }
+                return null;
+            }
 
                     // finally, see if we can identify any sub portion that's valid. Otherwise bail out
                     suggestedFileMask = checkFileMaskMatchV3(dir,fileMask);
                     if(suggestedFileMask!=null) {
                         return suggestedFileMask;
+
                     }
                 }
+
 
                 return null; // no error
             }
@@ -2813,7 +2874,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                         else
                             return Messages.FilePath_validateAntFileMask_doesntMatchAnythingAndSuggest(fileMask,pattern);
                     }
-
+                  
                     // cut off the trailing component and try again
                     previous = pattern;
                     pattern = pattern.substring(0,idx);

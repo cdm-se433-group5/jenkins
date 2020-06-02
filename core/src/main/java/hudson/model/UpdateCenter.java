@@ -391,7 +391,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
             String siteId = request.getParameter("siteId");
             if (siteId == null) {
                 siteId = ID_DEFAULT;
-            } else if (siteId.equals("default")) {
+            } else if (siteId.equals(PREDEFINED_UPDATE_SITE_ID)) {
                 // If the request explicitly requires the default ID, ship it
                 siteId = ID_DEFAULT;
             }
