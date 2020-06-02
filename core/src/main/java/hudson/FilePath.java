@@ -2705,45 +2705,55 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if(hasMatch(dir,fileMask,caseSensitive))
                         continue;   // no error on this portion
 
-                    // JENKINS-5253 - if we can get some match in case insensitive mode
-                    // and user requested case sensitive match, notify the user
-                    if (caseSensitive && hasMatch(dir, fileMask, false)) {
-                        return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
-                    }
-
-                    // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
-                    // so see if we can match by using ' ' as the separator
-                    if(fileMask.contains(" ")) {
-                        boolean matched = true;
-                        for (String token : Util.tokenize(fileMask))
-                            matched &= hasMatch(dir,token,caseSensitive);
-                        if(matched)
-                            return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
-                    }
-
-                    // a common mistake is to assume the wrong base dir, and there are two variations
-                    // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
-                    // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
-
-                    String suggestedFileMask = checkFileMaskMatch(dir,fileMask);
-                    if(suggestedFileMask!=null) {
-                        return suggestedFileMask;
-                    }
-
-                    // check the (2) above next as this is more expensive.
-                    suggestedFileMask = checkFileMaskMatchV2(dir,fileMask);
-                    if(suggestedFileMask!=null) {
-                        return suggestedFileMask;
-                    }
-
-                    // finally, see if we can identify any sub portion that's valid. Otherwise bail out
-                    suggestedFileMask = checkFileMaskMatchV3(dir,fileMask);
+                    // Refactored this method to reduce its Cognitive Complexity from 60 to the 15 allowed
+                    String suggestedFileMask = getSuggestedFileMask(dir,fileMask);
                     if(suggestedFileMask!=null) {
                         return suggestedFileMask;
                     }
                 }
 
                 return null; // no error
+            }
+
+            public String getSuggestedFileMask(File dir, String fileMask) throws InterruptedException {
+                // JENKINS-5253 - if we can get some match in case insensitive mode
+                // and user requested case sensitive match, notify the user
+                if (caseSensitive && hasMatch(dir, fileMask, false)) {
+                    return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
+                }
+
+                // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
+                // so see if we can match by using ' ' as the separator
+                if(fileMask.contains(" ")) {
+                    boolean matched = true;
+                    for (String token : Util.tokenize(fileMask))
+                        matched &= hasMatch(dir,token,caseSensitive);
+                    if(matched)
+                        return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
+                }
+
+                // a common mistake is to assume the wrong base dir, and there are two variations
+                // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
+                // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
+
+                String suggestedFileMask = checkFileMaskMatch(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                // check the (2) above next as this is more expensive.
+                suggestedFileMask = checkFileMaskMatchV2(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                // finally, see if we can identify any sub portion that's valid. Otherwise bail out
+                suggestedFileMask = checkFileMaskMatchV3(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                return null;
             }
 
             // Extract nested code block from invoke into method
