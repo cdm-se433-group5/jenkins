@@ -213,6 +213,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
      * Maximum http redirects we will follow. This defaults to the same number as Firefox/Chrome tolerates.
      */
     private static final int MAX_REDIRECTS = 20;
+    private static final String SKIPPING_INSTALL = "Skipping installation of ";
 
     /**
      * When this {@link FilePath} represents the remote path,
@@ -864,7 +865,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
             } catch (IOException x) {
                 if (this.exists()) {
                     // Cannot connect now, so assume whatever was last unpacked is still OK.
-                    listener.getLogger().println("Skipping installation of " + archive + " to " + remote + ": " + x);
+                    listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + ": " + x);
                     return false;
                 } else {
                     throw x;
@@ -882,7 +883,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                         listener.getLogger().println("Following redirect " + archive.toExternalForm() + " -> " + location);
                         return installIfNecessaryFrom(getUrlFactory().newURL(location), listener, message, maxRedirects - 1);
                     } else {
-                        listener.getLogger().println("Skipping installation of " + archive + " to " + remote + " due to too many redirects.");
+                        listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + " due to too many redirects.");
                         return false;
                     }
                 }
@@ -890,7 +891,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
                         return false;
                     } else if (responseCode != HttpURLConnection.HTTP_OK) {
-                        listener.getLogger().println("Skipping installation of " + archive + " to " + remote + " due to server error: " + responseCode + " " + httpCon.getResponseMessage());
+                        listener.getLogger().println(SKIPPING_INSTALL + archive + " to " + remote + " due to server error: " + responseCode + " " + httpCon.getResponseMessage());
                         return false;
                     }
                 }
@@ -2705,12 +2706,15 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if(hasMatch(dir,fileMask,caseSensitive))
                         continue;   // no error on this portion
 
+
                     // Refactored this method to reduce its Cognitive Complexity from 60 to the 15 allowed
                     String suggestedFileMask = getSuggestedFileMask(dir,fileMask);
                     if(suggestedFileMask!=null) {
                         return suggestedFileMask;
+
                     }
                 }
+
 
                 return null; // no error
             }
@@ -2722,6 +2726,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
                 }
 
+
                 // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
                 // so see if we can match by using ' ' as the separator
                 if(fileMask.contains(" ")) {
@@ -2731,6 +2736,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     if(matched)
                         return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
                 }
+
 
                 // a common mistake is to assume the wrong base dir, and there are two variations
                 // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
@@ -2754,6 +2760,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                 }
 
                 return null;
+
             }
 
             // Extract nested code block from invoke into method
@@ -2823,7 +2830,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                         else
                             return Messages.FilePath_validateAntFileMask_doesntMatchAnythingAndSuggest(fileMask,pattern);
                     }
-
+                  
                     // cut off the trailing component and try again
                     previous = pattern;
                     pattern = pattern.substring(0,idx);
