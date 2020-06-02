@@ -22,6 +22,7 @@ public class FullDuplexHttpStream {
     
     private final OutputStream output;
     private final InputStream input;
+    private final String AUTHORIZATION = "Authorization";
 
     /**
      * A way to get data from the server.
@@ -68,7 +69,7 @@ public class FullDuplexHttpStream {
         con.addRequestProperty("Session", uuid.toString());
         con.addRequestProperty("Side","download");
         if (authorization != null) {
-            con.addRequestProperty("Authorization", authorization);
+            con.addRequestProperty(AUTHORIZATION, authorization);
         }
         con.getOutputStream().close();
         input = con.getInputStream();
@@ -88,7 +89,7 @@ public class FullDuplexHttpStream {
         con.addRequestProperty("Session", uuid.toString());
         con.addRequestProperty("Side","upload");
         if (authorization != null) {
-        	con.addRequestProperty ("Authorization", authorization);
+        	con.addRequestProperty (AUTHORIZATION, authorization);
         }
         output = con.getOutputStream();
         LOGGER.fine("established upload side");
@@ -104,7 +105,7 @@ public class FullDuplexHttpStream {
         try {
             HttpURLConnection con = openHttpConnection(base);
             if (authorization != null) {
-                con.addRequestProperty("Authorization", authorization);
+                con.addRequestProperty(AUTHORIZATION, authorization);
             }
             con.getInputStream().close();
             base = con.getURL();

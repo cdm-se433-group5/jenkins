@@ -71,6 +71,15 @@ public abstract class InstanceIdentityProvider<PUB extends PublicKey, PRIV exten
             new KeyTypes<>(ECPublicKey.class, ECPrivateKey.class);
 
     /**
+     * Define constants.
+     */
+
+    public static final String INSTANCE_IDENTITY_PROVIDER = "Instance identity provider ";
+    public static final String PROPAGATED_RUNTIME_EXCEPTION = " propagated a runtime exception";
+    public static final String PROPAGATED_UNCAUGHT_EXCEPTION = " propagated an uncaught exception";
+    public static final String ERROR_CONSULTING_INSTANCE_IDENTITY_PROVIDER = "Encountered an error while consulting instance identity provider ";
+
+    /**
      * Gets the {@link KeyPair} that comprises the instance identity.
      *
      * @return the {@link KeyPair} that comprises the instance identity. {@code null} could technically be returned in
@@ -162,14 +171,14 @@ public abstract class InstanceIdentityProvider<PUB extends PublicKey, PRIV exten
                     }
                 } catch (RuntimeException e) {
                     LOGGER.log(Level.WARNING,
-                            "Instance identity provider " + provider + " propagated a runtime exception", e);
+                            INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_RUNTIME_EXCEPTION, e);
                 } catch (Error e) {
                     LOGGER.log(Level.INFO,
-                            "Encountered an error while consulting instance identity provider " + provider, e);
+                            ERROR_CONSULTING_INSTANCE_IDENTITY_PROVIDER + provider, e);
                     throw e;
                 } catch (Throwable e) {
                     LOGGER.log(Level.SEVERE,
-                            "Instance identity provider " + provider + " propagated an uncaught exception", e);
+                            INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_UNCAUGHT_EXCEPTION, e);
                 }
             }
             return null;
@@ -208,15 +217,15 @@ public abstract class InstanceIdentityProvider<PUB extends PublicKey, PRIV exten
                 return provider == null ? null : provider.getKeyPair();
             } catch (RuntimeException e) {
                 LOGGER.log(Level.WARNING,
-                        "Instance identity provider " + provider + " propagated a runtime exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_RUNTIME_EXCEPTION, e);
                 return null;
             } catch (Error e) {
                 LOGGER.log(Level.INFO,
-                        "Encountered an error while consulting instance identity provider " + provider, e);
+                        ERROR_CONSULTING_INSTANCE_IDENTITY_PROVIDER + provider, e);
                 throw e;
             } catch (Throwable e) {
                 LOGGER.log(Level.SEVERE,
-                        "Instance identity provider " + provider + " propagated an uncaught exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_UNCAUGHT_EXCEPTION, e);
                 return null;
             }
         }
@@ -233,15 +242,15 @@ public abstract class InstanceIdentityProvider<PUB extends PublicKey, PRIV exten
                 return provider == null ? null : provider.getPublicKey();
             } catch (RuntimeException e) {
                 LOGGER.log(Level.WARNING,
-                        "Instance identity provider " + provider + " propagated a runtime exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_RUNTIME_EXCEPTION, e);
                 return null;
             } catch (Error e) {
                 LOGGER.log(Level.INFO,
-                        "Encountered an error while consulting instance identity provider " + provider, e);
+                        ERROR_CONSULTING_INSTANCE_IDENTITY_PROVIDER + provider, e);
                 throw e;
             } catch (Throwable e) {
                 LOGGER.log(Level.SEVERE,
-                        "Instance identity provider " + provider + " propagated an uncaught exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_UNCAUGHT_EXCEPTION, e);
                 return null;
             }
         }
@@ -258,15 +267,15 @@ public abstract class InstanceIdentityProvider<PUB extends PublicKey, PRIV exten
                 return provider == null ? null : provider.getPrivateKey();
             } catch (RuntimeException e) {
                 LOGGER.log(Level.WARNING,
-                        "Instance identity provider " + provider + " propagated a runtime exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_RUNTIME_EXCEPTION, e);
                 return null;
             } catch (Error e) {
                 LOGGER.log(Level.INFO,
-                        "Encountered an error while consulting instance identity provider " + provider, e);
+                        ERROR_CONSULTING_INSTANCE_IDENTITY_PROVIDER + provider, e);
                 throw e;
             } catch (Throwable e) {
                 LOGGER.log(Level.SEVERE,
-                        "Instance identity provider " + provider + " propagated an uncaught exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_UNCAUGHT_EXCEPTION, e);
                 return null;
             }
         }
@@ -284,15 +293,15 @@ public abstract class InstanceIdentityProvider<PUB extends PublicKey, PRIV exten
                 return provider == null ? null : provider.getCertificate();
             } catch (RuntimeException e) {
                 LOGGER.log(Level.WARNING,
-                        "Instance identity provider " + provider + " propagated a runtime exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_RUNTIME_EXCEPTION, e);
                 return null;
             } catch (Error e) {
                 LOGGER.log(Level.INFO,
-                        "Encountered an error while consulting instance identity provider " + provider, e);
+                        ERROR_CONSULTING_INSTANCE_IDENTITY_PROVIDER + provider, e);
                 throw e;
             } catch (Throwable e) {
                 LOGGER.log(Level.SEVERE,
-                        "Instance identity provider " + provider + " propagated an uncaught exception", e);
+                        INSTANCE_IDENTITY_PROVIDER + provider + PROPAGATED_UNCAUGHT_EXCEPTION, e);
                 return null;
             }
         }

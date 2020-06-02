@@ -512,6 +512,18 @@ public abstract class ExtensionFinder implements ExtensionPoint {
                 }
             }
 
+            protected Class find_e(AnnotatedElement e){
+
+                if (e instanceof Field) {
+                    return ((Field)e).getType();
+                } else
+                if (e instanceof Method) {
+                    return ((Method)e).getReturnType();
+                } else {
+                    throw new AssertionError();
+                }
+            }
+
             @SuppressWarnings({"unchecked", "ChainOfInstanceofChecks"})
             @Override
             protected void configure() {
@@ -532,15 +544,7 @@ public abstract class ExtensionFinder implements ExtensionPoint {
                             annotations.put(key,a);
                             bind(key).in(scope);
                         } else {
-                            Class extType;
-                            if (e instanceof Field) {
-                                extType = ((Field)e).getType();
-                            } else
-                            if (e instanceof Method) {
-                                extType = ((Method)e).getReturnType();
-                            } else {
-                                throw new AssertionError();
-                            }
+                            Class extType = find_e(e);
 
                             resolve(extType);
 
