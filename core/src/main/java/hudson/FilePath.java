@@ -348,21 +348,21 @@ public final class FilePath implements SerializableOnlyOverRemoting {
             String token = tokens.get(i);
             if (token.equals(".")) {
                 tokens.remove(i);
-                if (tokens.size() > 0)
+                if (!tokens.isEmpty())
                     tokens.remove(i > 0 ? i - 1 : i);
             } else if (token.equals("..")) {
                 if (i == 0) {
                     // If absolute path, just remove: /../something
                     // If relative path, not collapsible so leave as-is
                     tokens.remove(0);
-                    if (tokens.size() > 0) token += tokens.remove(0);
+                    if (!tokens.isEmpty()) token += tokens.remove(0);
                     if (!isAbsolute) buf.append(token);
                 } else {
                     // Normalize: remove something/.. plus separator before/after
                     i -= 2;
                     for (int j = 0; j < 3; j++) tokens.remove(i);
                     if (i > 0) tokens.remove(i-1);
-                    else if (tokens.size() > 0) tokens.remove(0);
+                    else if (!tokens.isEmpty()) tokens.remove(0);
                 }
             } else
                 i += 2;
@@ -2704,98 +2704,130 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     final String fileMask = tokens.nextToken().trim();
                     if(hasMatch(dir,fileMask,caseSensitive))
                         continue;   // no error on this portion
-                    
-                    // JENKINS-5253 - if we can get some match in case insensitive mode
-                    // and user requested case sensitive match, notify the user
-                    if (caseSensitive && hasMatch(dir, fileMask, false)) {
-                        return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
-                    }
 
-                    // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
-                    // so see if we can match by using ' ' as the separator
-                    if(fileMask.contains(" ")) {
-                        boolean matched = true;
-                        for (String token : Util.tokenize(fileMask))
-                            matched &= hasMatch(dir,token,caseSensitive);
-                        if(matched)
-                            return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
-                    }
-
-                    // a common mistake is to assume the wrong base dir, and there are two variations
-                    // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
-                    // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
-
-                    {// check the (1) above first
-                        String f=fileMask;
-                        while(true) {
-                            int idx = findSeparator(f);
-                            if(idx==-1)     break;
-                            f=f.substring(idx+1);
-
-                            if(hasMatch(dir,f,caseSensitive))
-                                return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask,f);
-                        }
-                    }
-
-                    {// check the (2) above next as this is more expensive.
-                        // Try prepending "**/" to see if that results in a match
-                        FileSet fs = Util.createFileSet(reading(dir),"**/"+fileMask);
-                        fs.setCaseSensitive(caseSensitive);
-                        DirectoryScanner ds = fs.getDirectoryScanner(new Project());
-                        if(ds.getIncludedFilesCount()!=0) {
-                            // try shorter name first so that the suggestion results in least amount of changes
-                            String[] names = ds.getIncludedFiles();
-                            Arrays.sort(names,SHORTER_STRING_FIRST);
-                            for( String f : names) {
-                                // now we want to decompose f to the leading portion that matched "**"
-                                // and the trailing portion that matched the file mask, so that
-                                // we can suggest the user error.
-                                //
-                                // this is not a very efficient/clever way to do it, but it's relatively simple
-
-                                StringBuilder prefix = new StringBuilder();
-                                while(true) {
-                                    int idx = findSeparator(f);
-                                    if(idx==-1)     break;
-
-                                    prefix.append(f, 0, idx).append('/');
-                                    f=f.substring(idx+1);
-                                    if(hasMatch(dir,prefix+fileMask,caseSensitive))
-                                        return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask, prefix+fileMask);
-                                }
-                            }
-                        }
-                    }
-
-                    {// finally, see if we can identify any sub portion that's valid. Otherwise bail out
-                        String previous = null;
-                        String pattern = fileMask;
-
-                        while(true) {
-                            if(hasMatch(dir,pattern,caseSensitive)) {
-                                // found a match
-                                if(previous==null)
-                                    return Messages.FilePath_validateAntFileMask_portionMatchAndSuggest(fileMask,pattern);
-                                else
-                                    return Messages.FilePath_validateAntFileMask_portionMatchButPreviousNotMatchAndSuggest(fileMask,pattern,previous);
-                            }
-
-                            int idx = findSeparator(pattern);
-                            if(idx<0) {// no more path component left to go back
-                                if(pattern.equals(fileMask))
-                                    return Messages.FilePath_validateAntFileMask_doesntMatchAnything(fileMask);
-                                else
-                                    return Messages.FilePath_validateAntFileMask_doesntMatchAnythingAndSuggest(fileMask,pattern);
-                            }
-
-                            // cut off the trailing component and try again
-                            previous = pattern;
-                            pattern = pattern.substring(0,idx);
-                        }
+                    // Refactored this method to reduce its Cognitive Complexity from 60 to the 15 allowed
+                    String suggestedFileMask = getSuggestedFileMask(dir,fileMask);
+                    if(suggestedFileMask!=null) {
+                        return suggestedFileMask;
                     }
                 }
 
                 return null; // no error
+            }
+
+            public String getSuggestedFileMask(File dir, String fileMask) throws InterruptedException {
+                // JENKINS-5253 - if we can get some match in case insensitive mode
+                // and user requested case sensitive match, notify the user
+                if (caseSensitive && hasMatch(dir, fileMask, false)) {
+                    return Messages.FilePath_validateAntFileMask_matchWithCaseInsensitive(fileMask);
+                }
+
+                // in 1.172 we introduced an incompatible change to stop using ' ' as the separator
+                // so see if we can match by using ' ' as the separator
+                if(fileMask.contains(" ")) {
+                    boolean matched = true;
+                    for (String token : Util.tokenize(fileMask))
+                        matched &= hasMatch(dir,token,caseSensitive);
+                    if(matched)
+                        return Messages.FilePath_validateAntFileMask_whitespaceSeparator();
+                }
+
+                // a common mistake is to assume the wrong base dir, and there are two variations
+                // to this: (1) the user gave us aa/bb/cc/dd where cc/dd was correct
+                // and (2) the user gave us cc/dd where aa/bb/cc/dd was correct.
+
+                String suggestedFileMask = checkFileMaskMatch(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                // check the (2) above next as this is more expensive.
+                suggestedFileMask = checkFileMaskMatchV2(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                // finally, see if we can identify any sub portion that's valid. Otherwise bail out
+                suggestedFileMask = checkFileMaskMatchV3(dir,fileMask);
+                if(suggestedFileMask!=null) {
+                    return suggestedFileMask;
+                }
+
+                return null;
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatch(File dir, String fileMask) throws InterruptedException {
+                String f=fileMask;
+                while(true) {
+                    int idx = findSeparator(f);
+                    if(idx==-1)     break;
+                    f=f.substring(idx+1);
+
+                    if(hasMatch(dir,f,caseSensitive))
+                        return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask,f);
+                }
+                return null;
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatchV2(File dir, String fileMask) throws InterruptedException {
+                // Try prepending "**/" to see if that results in a match
+                FileSet fs = Util.createFileSet(reading(dir),"**/"+fileMask);
+                fs.setCaseSensitive(caseSensitive);
+                DirectoryScanner ds = fs.getDirectoryScanner(new Project());
+                if(ds.getIncludedFilesCount()!=0) {
+                    // try shorter name first so that the suggestion results in least amount of changes
+                    String[] names = ds.getIncludedFiles();
+                    Arrays.sort(names,SHORTER_STRING_FIRST);
+                    for( String f : names) {
+                        // now we want to decompose f to the leading portion that matched "**"
+                        // and the trailing portion that matched the file mask, so that
+                        // we can suggest the user error.
+                        //
+                        // this is not a very efficient/clever way to do it, but it's relatively simple
+
+                        StringBuilder prefix = new StringBuilder();
+                        while(true) {
+                            int idx = findSeparator(f);
+                            if(idx==-1)     break;
+
+                            prefix.append(f, 0, idx).append('/');
+                            f=f.substring(idx+1);
+                            if(hasMatch(dir,prefix+fileMask,caseSensitive))
+                                return Messages.FilePath_validateAntFileMask_doesntMatchAndSuggest(fileMask, prefix+fileMask);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatchV3(File dir, String fileMask) throws InterruptedException {
+                String previous = null;
+                String pattern = fileMask;
+
+                while(true) {
+                    if(hasMatch(dir,pattern,caseSensitive)) {
+                        // found a match
+                        if(previous==null)
+                            return Messages.FilePath_validateAntFileMask_portionMatchAndSuggest(fileMask,pattern);
+                        else
+                            return Messages.FilePath_validateAntFileMask_portionMatchButPreviousNotMatchAndSuggest(fileMask,pattern,previous);
+                    }
+
+                    int idx = findSeparator(pattern);
+                    if(idx<0) {// no more path component left to go back
+                        if(pattern.equals(fileMask))
+                            return Messages.FilePath_validateAntFileMask_doesntMatchAnything(fileMask);
+                        else
+                            return Messages.FilePath_validateAntFileMask_doesntMatchAnythingAndSuggest(fileMask,pattern);
+                    }
+
+                    // cut off the trailing component and try again
+                    previous = pattern;
+                    pattern = pattern.substring(0,idx);
+                }
             }
 
             private boolean hasMatch(File dir, String pattern, boolean bCaseSensitive) throws InterruptedException {
