@@ -2704,7 +2704,7 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     final String fileMask = tokens.nextToken().trim();
                     if(hasMatch(dir,fileMask,caseSensitive))
                         continue;   // no error on this portion
-                    
+
                     // JENKINS-5253 - if we can get some match in case insensitive mode
                     // and user requested case sensitive match, notify the user
                     if (caseSensitive && hasMatch(dir, fileMask, false)) {
@@ -2736,31 +2736,10 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                         return suggestedFileMask;
                     }
 
-                    {// finally, see if we can identify any sub portion that's valid. Otherwise bail out
-                        String previous = null;
-                        String pattern = fileMask;
-
-                        while(true) {
-                            if(hasMatch(dir,pattern,caseSensitive)) {
-                                // found a match
-                                if(previous==null)
-                                    return Messages.FilePath_validateAntFileMask_portionMatchAndSuggest(fileMask,pattern);
-                                else
-                                    return Messages.FilePath_validateAntFileMask_portionMatchButPreviousNotMatchAndSuggest(fileMask,pattern,previous);
-                            }
-
-                            int idx = findSeparator(pattern);
-                            if(idx<0) {// no more path component left to go back
-                                if(pattern.equals(fileMask))
-                                    return Messages.FilePath_validateAntFileMask_doesntMatchAnything(fileMask);
-                                else
-                                    return Messages.FilePath_validateAntFileMask_doesntMatchAnythingAndSuggest(fileMask,pattern);
-                            }
-
-                            // cut off the trailing component and try again
-                            previous = pattern;
-                            pattern = pattern.substring(0,idx);
-                        }
+                    // finally, see if we can identify any sub portion that's valid. Otherwise bail out
+                    suggestedFileMask = checkFileMaskMatchV3(dir,fileMask);
+                    if(suggestedFileMask!=null) {
+                        return suggestedFileMask;
                     }
                 }
 
@@ -2811,6 +2790,34 @@ public final class FilePath implements SerializableOnlyOverRemoting {
                     }
                 }
                 return null;
+            }
+
+            // Extract nested code block from invoke into method
+            public String checkFileMaskMatchV3(File dir, String fileMask) throws InterruptedException {
+                String previous = null;
+                String pattern = fileMask;
+
+                while(true) {
+                    if(hasMatch(dir,pattern,caseSensitive)) {
+                        // found a match
+                        if(previous==null)
+                            return Messages.FilePath_validateAntFileMask_portionMatchAndSuggest(fileMask,pattern);
+                        else
+                            return Messages.FilePath_validateAntFileMask_portionMatchButPreviousNotMatchAndSuggest(fileMask,pattern,previous);
+                    }
+
+                    int idx = findSeparator(pattern);
+                    if(idx<0) {// no more path component left to go back
+                        if(pattern.equals(fileMask))
+                            return Messages.FilePath_validateAntFileMask_doesntMatchAnything(fileMask);
+                        else
+                            return Messages.FilePath_validateAntFileMask_doesntMatchAnythingAndSuggest(fileMask,pattern);
+                    }
+
+                    // cut off the trailing component and try again
+                    previous = pattern;
+                    pattern = pattern.substring(0,idx);
+                }
             }
 
             private boolean hasMatch(File dir, String pattern, boolean bCaseSensitive) throws InterruptedException {
